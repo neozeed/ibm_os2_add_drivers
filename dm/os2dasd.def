@@ -1,0 +1,12 @@
+LIBRARY OS2DASD
+
+PROTMODE
+
+SEGMENTS
+ _DATA          CLASS 'DATA'
+ CONST          CLASS 'CONST'
+ _BSS           CLASS 'BSS'
+ 'Code'         CLASS 'CODE' IOPL
+ _TEXT          CLASS 'CODE' IOPL
+ SwapCode       CLASS 'CODE' IOPL
+

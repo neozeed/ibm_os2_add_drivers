@@ -1,0 +1,7 @@
+ADSKSEGS.OBJ ADSKDATA.OBJ ADSKSTR1.OBJ ADSKINTH.OBJ ADSKIORB.OBJ +
+ADSKSM.OBJ ADSKSGB.OBJ ADSKASUB.OBJ ADSKINIT.OBJ +
+
+ibm2adsk.add
+ibm2adsk.map
+..\..\devhelp\dhcalls.lib ..\..\addcalls\addcalls.lib
+ibm2adsk.def

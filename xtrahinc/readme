@@ -1,0 +1,9 @@
+Included in this file (xtrahinc.zip) are 'generic' H/INC files which
+are used in the build of ADDs and DMs.  They are standard files used
+with other device drivers.
+
+Please look through the 2.0 application toolkit for other headers that
+you may need.  If you do not find what you require, please let us know
+with a message.
+
+Thanx

@@ -1,0 +1,528 @@
+
+
+
+
+
+
+
+
+
+  INSTALL:  There is a set of impacts to INSTALL from the OEM DASD work:
+
+  o   Deletions from the base device driver load list (as described above) must
+      be compenstated for by "basedev=" statements in both the Install
+      (diskette #1) config.sys file, and in the config.sys file on the target
+      drive.
+  o   The IBMINT13 and OS2DASD drivers should be installed as base drivers in
+      all configurations.  Adapter device drivers appropriate for the work-
+      station being configured should be installed as base drivers.
+  o   Mechanisms must be provided for the OEM to add procedures to the instal-
+      lation process, to automatically determine which of their Adapter DD's
+      (if any) need to be installed in a given workstation.
+
+  CONFIG.SYS file on Install Diskette #1:  In order to compenstate for changes
+  to the base DD load list, the config.sys file on the Install diskette should
+  contain the following statements to load its printer and disk support:
+
+    basedev = print01.sys
+    basedev = ibm1flpy.add
+    basedev = ibm1s506.add
+    basedev = ibm2flpy.add
+    basedev = ibm2esdi.add
+    basedev = ibm1int13.i13
+    basedev = os2dasd.dm
+
+  Note that the Family 1 print driver is used for both Family 1 and Family 2
+  machines during the first part of the install process.
+
+  In order to provide services needed to determine workstation configuration, a
+  new device driver named TESTCFG.SYS must also be loaded by diskette #1.
+  TESTCFG.SYS is described later in this DCR.  TESTCFG.SYS should be included
+  in the CONFIG.SYS file using the following syntax:
+
+    device = testcfg.sys
+
+  Full Screen INSTALL (diskettes I-4):  The Install Diskette #1 device driver
+  configuration will allow the installation process to proceed through the
+  initial formatting and config.sys layout on the target drive.  The target
+  drive's config.sys will be then be configured per the following algorithm:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                              1
+
+
+
+
+
+
+
+
+
+    If (ABIOS present)
+       Begin
+          install PRINT02.SYS
+          if (ABIOS ESDI present) install IBM2ESDI.ADD
+          if (ABIOS SCSI present) install IBM2SCSI.ADD
+       End
+    Else
+       Begin
+          install PRINT01.SYS
+          if (ST-506 present) install IBM1S506.ADD
+       End.
+    install IBMINT13.I13
+    install OS2DASD.DMD
+    install TESTCFG.SYS
+
+  The ABIOS SCSI, ESDI, and (ISA) ST-506 presence checks can be performed using
+  new IOCtl services provided by a TESTCFG device driver, described later in
+  this DCR.
+
+  PM INSTALL (installation of OEM unique drivers):  The IBM development func-
+  tion responsible for OEM support (currently Ken Christoper and Shirley Swift)
+  anticipate that a dozen or more OEM unique DASD/SCSI device drivers will be
+  shipped with the OS/2 version 2.0 shrink wrap product.  We anticipate that
+  this number (of OEM drivers) will increase with subsequent releases.  These
+  drivers will be packaged and installed as described here.
+
+  After reboot from the hardfile, the installation process will eventually
+  proceed to a point where optional hardware configurations are set up. At this
+  point, the install process should check of the presence of unique OEM DASD or
+  SCSI support.  This will be accomplished by executing the set of presence
+  check functions that are supplied by each OEM.  When a presence check func-
+  tion indicates that a particular DASD/SCSI interface is present, the corre-
+  sponding drivers will be installed.
+
+  Reference the section on DDINSTAL extensions for additional information on
+  presence check functions and their mappings to driver installation proce-
+  dures.
+
+  ADD's that must be loaded from the installation diskettes will be in the root
+  directory of the diskette.  ADD's that are placed on the hard drive by the
+  OS/2 installation process will be placed in the \OS2 subdirectory of the
+  install drive.
+
+
+
+  DDINSTAL:  New keyword, and associated extended function.
+
+  The OEM support organization (Ken Christopher, Shirley Swift) anticipate that
+  up to a dozen OEM's may provide up to a half dozen ADD's each for their spe-
+  cific DASD or SCSI device interfaces.  We plan to ship whatever ADD's we can
+  with the OS/2 shrink wrap.  More ADD's will become available from other OEM's
+  after OS/2 ships.
+
+
+
+
+                                                                              2
+
+
+
+
+
+
+
+
+
+  The problem is this:  for ADD's that we ship with the product, how do we
+  automatically determine which ADD's need to be installed on a particular
+  workstation (without recourse to the end-user)?  What is needed is a way for
+  the OEM to provide us with an Installation process for his ADD, along with
+  the ADD itself.  The OEM should develop the code and maintain it;  IBM could
+  then simply distribute the code.  Lacking such a strategy, the OS/2 develop-
+  ment group will continuously spend resource in updating OEM installation com-
+  ponents.
+
+  A reasonable solution should also be provided for those ADD's that are not
+  packaged with the OS/2 shrink wrap.
+
+  This DCR calls out the design point of automatic detection.  We believe that
+  asking the customer to identify his DASD interface from a large set of pos-
+  sible interfaces is an unacceptably difficult burden on the user, and highly
+  likely to fail due to user error.
+
+  The solution proposed here builds on the current DDINSTAL utility.  DDINSTAL
+  will be extended with a new keyword, "PresenceCheck".  This keyword identi-
+  fies the name of an executable program, supplied by the OEM, which will query
+  the hardware configuration for the presence of that particular OEM's inter-
+  face.  If the predicate function returns '0', the DDINSTAL program will high-
+  light the associated menu entry and display the following message:
+
+    "The highlighted entry is being automatically installed."
+
+  and proceed to process the corresponding Device Driver Profile (DDP) script
+  which installs the device support.
+
+  The DDINSTAL interpreter will supply the presence check function with a file
+  name as a parameter.  This file name may include drive and path information.
+  The presence check function can use this file to dynamically build a DDP
+  script.  For example, suppose the OEM needs to set some switches on the
+  DEVICE= command line, based on information obtained during the execution of
+  the presence check function.  This can be accomplished by writing a DDP
+  script to the file that is named by the program parameter.
+
+  If the presence check function saves a DDP script in the file named by the
+  DDINSTAL parameter, the dynamically created DDP script will be interpreted
+  first.  Any static DDINSTAL script in the DDP file is subsequently processed.
+
+  When the presence check function does not detect the presense of the OEM's
+  hardware interface, it should exit with a '-1' return code.
+
+  In addition to the OS/2 API set, the presence check function can use any of
+  the following services which are provided by the TESTCFG device driver.
+  Refer to the section on TESTCFG, below, for specifications.
+
+  A few note on design decisions made in this area:
+
+  1.  Problem of overwritting an existing install:  For example, if the user
+      has installed a more recent version of the device driver support, the
+      autmoated process will overwrite the newer driver with the old.
+
+
+
+                                                                              3
+
+
+
+
+
+
+
+
+
+      Conclusion:  The problem exists throughout the entire install process.
+      Beyond the scope of this DCR to address it.
+
+  2.  Question of whether a successful presence check function should simply
+      inform the end user of the presense of the hardware interface, and then
+      have the user answer an "OK to proceed" question before installing.
+
+      Conclusion:  Practically no end users will have the expertise to answer
+      the question.  The process should be automatic, and minimize end user
+      interaction.
+
+  TESTCFG DEVICE DRIVER:  New device driver, provides services for automatic
+  detection of OEM hardware interfaces.
+
+  Functions provided by this driver are accessed entirely by Category 80h
+  ioctls as defined below.
+
+  As much of this driver should be swappable as possible.
+
+  The TESTCFG device driver provides:
+
+  o   a bus architecture query, and some miscellaneous DASD subsystem query
+      functions
+  o   for MCA workstations, the POS ID's of all installed features
+  o   for EISA workstations, EISA Product ID's of installed features
+  o   copy of contents of physcial memory between locations C0000 and FFFFF
+  o   I/O access to all ports not reserved for standard system use
+
+  MISCELLANEOUS QUERY:  Provides a query function for determining a number of
+  workstation configuration variables.
+
+  Functions numbered 1000 and above will not be documented externally.
+
+  Category:  80h
+
+  Function:  60h
+
+  Parameter packet:
+
+    ULONG   command;        // Select query function:
+                            //    0 = Query bus architecture.
+
+  Data packet:  on return, filled in as shown here per function code.
+
+  Query function 0 (bus architecture)
+
+    ULONG   bus_arch;       // 0 = ISA
+                            // 1 = Microchannel
+                            // 2 = EISA
+
+  Remarks:  None.
+
+
+
+
+
+                                                                              4
+
+
+
+
+
+
+
+
+
+  RETURN ALL POS ID's:  Provides a list of POS ID's in a Microchannel bus
+  system.
+
+  Category:  80h
+
+  Function:  61h
+
+  Parameter packet:
+
+    ULONG   command;        // Must be zero.
+
+  Data packet:  on return, filled in as shown here
+
+    USHORT  pos_id<16>;     // Start of array of POS id's returned.
+                            // pos_id<1> == POS ID in slot #1.
+
+  Remarks: Returns n=0 in an ISA or EISA configuration.  Also, pos_id<n>=FFFF
+  implies no adapter in slot n, or slot n does not exist.
+
+
+
+  RETURN ALL EISA ID's:  Provides a list of EISA ID's in each of the slots of
+  an EISA bus system.
+
+  Category:  80h
+
+  Function:  62h
+
+  Parameter packet:
+
+    ULONG   command;        // Must be zero.
+
+  Data packet:  on return, filled in as shown here
+
+    UCHAR   product_id<16><4>;
+                            // Start of array of EISA id's returned.
+                            // id<1> == Product ID in slot #1.
+
+  Remarks: Returns all product_id<> = 0 in an ISA or Microchannel configura-
+  tion.
+
+
+
+  OBTAIN COPY of BIOS/ADAPTER MEMORY:  Provides copy of contents of adapter
+  memory.
+
+  Category:  80h
+
+  Function:  40h
+
+  Parameter packet:
+
+
+
+
+
+                                                                              5
+
+
+
+
+
+
+
+
+
+    ULONG   command;        // Must be zero.
+    ULONG   addr0;          // Interpreted as a physical address,
+                            // must be in range of C0000h to FFFFFh.
+
+  Data packet:  on return, filled in as shown here
+
+    BYTE    content<>;      // Conents of memory at specified location.
+
+  Remarks:  The number of bytes of memory to copy is interpreted from the
+  length of the data buffer (provided with the DosDevIOCtl2 interface in 16 bit
+  API set, DosDevIOCtl in 32 bit API set).  The contents of memory will not be
+  copied past physical address FFFFF.
+
+
+
+  I/O "IN" INSTRUCTION:  Issues an IN I/O instruction.
+
+  Category:  80h
+
+  Function:  41h
+
+  Parameter packet:
+
+    USHORT  io_address;     // I/O address
+    USHORT  data_width;     // Integer; # bytes in transfer value.
+                            // 1 - in byte
+                            // 2 - in word
+                            // 4 - in dword
+
+  Data packet:
+
+    ULONG   value;          // Value read.
+
+  Remarks:  Ports below address 100h are not accessible.
+  ERROR_INVALID_PARAMETER returned when such a port is referenced.
+
+
+
+  I/O "OUT" INSTRUCTION:  Issues an OUT I/O instruction.
+
+  Category:  80h
+
+  Function:  42h
+
+  Parameter packet:
+
+    USHORT  io_address;     // I/O address
+    USHORT  data_width;     // Integer; # bytes in transfer value.
+                            // 1 - out byte
+                            // 2 - out word
+                            // 4 - out dword
+    ULONG   value;          // Data value to write.
+
+  Data packet:  None.
+
+
+                                                                              6
+
+
+
+
+
+
+
+
+
+  Remarks:  Ports below address 100h are not accessible.
+  ERROR_INVALID_PARAMETER returned when such a port is referenced.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                              7
+
+
+
+
+
+
++++EDF011W XMP end-tag found outside XMP and ignored. (Page
+4  File: INSTALL DCR)
+DSMMOM397I '.EDFEXMP' WAS IMBEDDED AT LINE 241 OF 'INSTALL'
+DSMBEG323I STARTING PASS 2 OF 2.
++++EDF011W XMP end-tag found outside XMP and ignored. (Page
+4  File: INSTALL DCR)
+DSMMOM397I '.EDFEXMP' WAS IMBEDDED AT LINE 241 OF 'INSTALL'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

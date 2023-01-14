@@ -1,0 +1,344 @@
+ADD Questions and Answers:
+
+1. My Kernel debugger (of 6.147) doesn't work with the current release?
+    What debugger works with the current beta (6.403e)?
+
+    Answer: Please contact DAP for the beta update; they will furnish you
+    with the current beta and KDB
+    (We would put KDB on this BBS, but the files are so large
+    it would tie up this BBS for too long)
+
+2.  I do not use ABIOS, but your sample code is for ABIOS machines?
+    Could you give some non-ABIOS example code?
+
+    Answer: Please look at IBM1S506; it will directly interface with the
+    hardware register set (i.e. it doesn't use ABIOS)
+
+3.  What is file IBM2ADSK.SYS ????
+
+ABIOS hardfile driver.  Refered to earlier as ibm2esdi.sys.
+
+4.    I was under the assumption, that our ADD had to handle multiple ASYNC
+      requests from OS2DASD/OS2SCSI.SYS. However, in reading through the code
+      requests are handled at any 1 time. If the state in NOT == IDLE then
+      the read, write or verify request through IOCM_EXECUTE_IO is ignored??
+
+ The ADDs are fully asynchronous. In the case of ST506/IDE drives
+ the controller is not capable of operating more than one attached
+ drive at a time. In these cases (also for floppy) the ADD must
+ accept requests for all physical devices it services at
+ anytime. If the device is busy the ADD must queue the request
+ and return immediately to the Device Manager or Filter. It is
+ up to the ADD servicing the device to manage queues for multiple
+ devices attached to a 'non-concurrent' controller.
+
+ The ADD model is weighted towards asynchronous operation since this
+ is in line with OS/2 and with both SCSI and ESDI DASD controllers
+ which are capable of running multiple devices concurrently.
+
+5. Can I use 32 bit offsets to my data within an ADD?
+ No.  The ADD programming model is 16 bit, which uses 16 bit offsets.
+
+6. Does 2.0 use the 386 paging feature?
+ Yes.
+
+7.  During initialization, are linear addresses=physical addresses when I
+     use DevHlp_AllocPhys.
+ No, they are not equal; you will need to use the following call to
+  obtain a logical address in order for the CPU to access the buffer:
+  AllocGDTSelector, PhysToGDTSel.
+
+8.  Do I need to use the DevHlps LinToGDTSelector or LinToPageList in my ADDs?
+  No, these are used by other device drivers which accept Application buffers
+  via the IOCtl interface.
+
+9.  What boundries may we expect to see between S/G areas in IBM OS/2 2.0?
+    4k (same boundries as pages, as implemented on 386 HW)
+
+10.  Can MS CodeView (in MSC 6.0) work on OS/2 2.0 (for application debug)?
+  No, it will trap the system.  If you need an application debugger,
+use the debugger supplied in the C/Set for V2.0 (Contact DAP for
+details on getting C/Set)
+
+11.  When I call the Device Help Routine Register Device Class, I must pass
+a device class (i.e. Disk, Tape, etc.)  When my adapter has both disk and
+tape to be supported, do I have to act like two seperate drivers and register
+as both a disk and a tape and keep two seperate tables?
+  Currently Register your ADD as Disk; note the only other classification
+is Mouse (which is unlikely to be supported by SCSI)
+
+12. How do I use CompuServe (CServe) for more Info on device drivers?
+Use command GO IBMOS2.  Go use the subsections Hardware and 2.0
+    (in that order) for programming info.
+
+13. Subject: Scatter / Gather
+A.
+When ADD receives the IOCC_CONFIGURATION Command Code, one of the quanities
+that DPT returns in the ADAPTERINFO structure is MaxHWSGList which defines the
+maximum # of S/G elements the DPT host adapter supports. Later, when the ADD
+receives an IOCC_EXECUTE_IO CommandCode which includes a list of scatter/gather
+elements, can DPT assume the the count of S/G elements will not exceed the
+MaxHWSGList value?
+
+
+B.
+
+Assuming that the answer to #1 above is `yes', if DPT sets MaxHWSGList = 64
+(which the DPT host adapter can support), will OS/2 ever send any I/O request
+with that many S/G elements?? The reason DPT asks this is that they assume
+they will wast a lot of system RAM if they provide for 64 S/G elements most of
+which can never occur. Because the DPT host adapter can handle up to 64
+simultaneous I/O requests each with 64 S/G elements, each 8-byte S/G element
+which is not needed wastes 64*8=512 bytes times the # if host adapters
+present.
+
+There is no limit on the number of S/G elements passed. However,
+the Device Managers will insure that the element at multiples
+of MaxHWSGListLength will not cross a LBA boundary. This allows
+the ADD to break up requests that exceed the maximum S/G HW list
+length into separate requests.
+
+For CDB passthru requests the the ADD may assume that a passed S/G list
+will not exceed MaxHWSGListLength.
+
+Further more, the ADD may modify the passed S/G
+list provided it reverses any modifications prior to notifying
+the Device Manager. The ADD would not normally incur any additional
+storage costs in this case.
+
+
+
+* * * * * * * * * * THESE QUESTIONS CONCERN TIMER SERVICES * * * * * * * * * *
+
+Based on what is in ADD spec, looks like the ADD is  responsible for setting up
+And handling I/O request's timing. (See Timeout  value passed in IORBH)
+
+14. The IBM2FLPY ADD uses DevHlp calls to handle timing. The AHA154X ADD also
+ uses calls to the ADDCALLS library. Which is the recommended approach?
+
+(A)  It is recommended that you use the services in the ADDCALLS library.
+     However, there is no requirement to do so. You may find that usage of the
+     Timer functions is convenient when the ADD needs to manage a number of
+     independent timers.
+
+     Due to overlap in the writing of the ADDs and the development of the
+     library services, some ADD writers opted to implement the services
+     themselves.
+
+15. Is there documentation available on the ADDCALLS library functions?
+
+(A)  Documentation for the library services will be included in
+     the Beta development kit which is currently being developed.
+
+16. If DevHlp calls are to be used, are the following calls accurately
+ described in Chap 17 fo the "Physical Device Driver Reference" .
+
+ DevHlp_SetTimer, DevHlp_ResetTimer, DevHlp_TickCount, DevHlp_GetDOSVar
+
+(A)  DevHelps are as described in the PDD Reference. When an error condition
+     occurs (cy) is set by the library interface routines or 0x8000 to the
+     returned value in AX. The C-function prototypes for the DevHelps is
+     provided in \DISKH\DHCALLS.H. The source for the library interface
+     routines is in \DEVHELP.
+
+     DevHelp_GetDOSVar has an additional variable to access the table of
+     registered ADDs this is discussed in the ADD/DM Specification.
+
+17. If using DevHlp, how do I determine timer tick interval at initialization
+ time since the DevHlp_GetDOSVar description says that GlobalInfoSeg.Interval
+ is valid only at task and interrupt time?
+
+(A)  ADDs may use interrupts and timer services and may block during
+     initialization. However, when an ADD completes processing a request it
+     should unhook its interrupt vector since the OS/2 KERNEL will mask
+     interrupts to real mode while a protect mode driver has the interrupt
+     hooked.
+
+* * * * * * THESE QUESTIONS CONCERN SPINLOOP VS INTERRUPT HANDLING * * * * * *
+
+18. During initialization and assumed, some initial I/O requests, INT 13 is
+ being used by the system to load various modules from the booting disk. During
+ this time, I/O performed by the ADD cannot use interrupts but must complete so
+ that interrupts may be used?
+
+    If I register my IRQ prior to INT 13 complete, will system start calling
+ my interrupt service routine immediately? In LADDR I had to wait for Boot
+ Complete (no more INT's) before registering my IRQ so as not to get
+ interrupted for I/O request that I did not make.
+
+(A)  Although a number of people have reported that on 1.x systems, they
+     received spurious interrupts from REAL MODE INT 13 activity, this is NOT
+     the case in 2.x systems. The kernel (DOSHLP) component blocks interrupts
+     for hooked IRQs. This 'feature' is being reviewed, at this time.
+     For the time being however, you should hook and unhook the IRQ vector
+     until you receive a COMPLETE_INIT IORB after which you may leave the
+     vector hooked permanently.
+
+19.
+ Subject: ADD Filter Question
+
+ (1): I have some questions relating to the ADD spec Appendix A page 22,
+ RequestControl flags. I have noticed that IBM2ADSK only allows EXECUTE_IO
+ reuests to be chained, it will only handle EXECUTE_IO asynchronously.
+ All other requests cannot have IORB_CHAIN set and are handled synchronously.
+ However, IBM1S506 processes all requests asynchronously (depending on the
+ internal ADD's processing state, where if it is not busy they would be done
+ synchronously) and allows chaining. Who is right here???
+
+ Could I have some clarification of the ADD spec when it is available.
+ (I could look at OS2DASD, but that would make this a defacto specification.)
+
+ (2): There seems to be an interface mixup between OS2DASD's call to the ADD
+  Entry Point, and its definition. All ADD's given as source have the ADD entry
+  point defined as C type (which does NOT clean parameters off the stack).
+  However OS2DASD defines all calls to the ADD Entry Point as PFN (PASCAL type)
+  which has the callee clean off the stack. I have redefined calls to the
+  ADD entry point as : (_cdecl FAR *) to allow my filter to call any C based
+  physical ADD entry points. Please clarify this with me.
+
+ (3): I have some concern about the fact that OS2DASD and the ADD architecture
+  will make it into the GA release. I am relying fully on ADDs for the
+  implementation of my product, and we are pushing for an April 1992 release.
+  If OS2DASD does NOT make it into GA, I need a fallback. Is it possible
+  to get the source code for DISK01 and DISK02 as a bridge from GA to the
+  availability of OS2DASD to my customer base???
+
+ (4): I am having a problem running my filter ADD w/ OS2DASD. Apparently due
+  to OS2DASD.DMINIT.C.Read_Sector function not using the proper IORB structure
+  to check the return code. See enclosed code:::
+ /*---------------------------------------------------------------
+ ;
+ ;**  Read_Sector - performs disk reads during initialization
+ ;
+ ;   Reads a sector from a fixed disk into ScratchBuffer.
+ ;   This routine sets up a hard coded read request packet
+ ;   and calls the Adapter Driver to perform the read.
+ ;
+ ;   USHORT Read_Sector (NPVOLCB pPhysVolCB, ULONG rba)
+ ;
+ ;   ENTRY:    pPhysVolCB       - Physical VolCB of disk to read
+ ;             rba              - RBA of sector to read
+ ;
+ ;
+ ;   RETURN:   USHORT           - Result Code (NO_ERROR if successful)
+ ;
+ ;   EFFECTS:  Reads a sector into global variable ScratchBuffer.
+ ;
+ ;   NOTES:    This routine is DISCARDED after init time.
+ ;--------------------------------------------------------------*/
+
+ USHORT  Read_Sector(pPhysVolCB, rba)
+
+ NPVOLCB  pPhysVolCB;
+ ULONG    rba;
+
+ {
+    PRP_RWV  pRP;
+    NPIORB   pIORB;
+    NPUNITCB pUnitCB;
+    USHORT   rc;
+
+
+    /* Set up the request packet for the read */
+
+    pRP = &InitTimeRP;
+    pRP->rph.Unit = pPhysVolCB->PhysDriveNum;
+    pRP->rph.Cmd = CMDINPUT;
+    pRP->rph.Status = 0;
+    pRP->MediaDescr = MEDIA_FIXED_DISK;
+    pRP->XferAddr = ppScratchBuffer;      /* Point to scratch buffer */
+    pRP->NumSectors = 1;                  /* Read 1 sector */
+    pRP->rba = rba;                       /* Store rba */
+
+    pUnitCB = pPhysVolCB->pUnitCB;
+
+    pIORB = (NPIORB) InitTimeIORB;
+    f_ZeroCB((PBYTE)pIORB, MAX_IORB_SIZE);
+
+    SetupIORB(pUnitCB, (PBYTE) pRP, pIORB);
+
+ ///LOOK HERE ********* - Call uses pIORB to call ADD !!!!!!!
+
+    (pUnitCB->AdapterDriverEP) ((PVOID) pIORB);
+
+    DISABLE;
+
+ ///LOOK HERE ********* - Call uses pRP to test if done !!!!!!!
+ /// I think this is a bug., it should use pIORB???
+
+    while ( !(pRP->rph.Status & STDON) )    /* Loop until I/O done   */
+    {
+       DevHelp_ProcBlock ((ULONG)pRP, -1L, 1);  /* Block: No timeout,non-interru
+       DISABLE;                          /* Block does an enable  */
+    }
+
+  ENABLE;
+
+     if (pRP->rph.Status & STERR)          /* Check for error */
+        rc = ERROR;
+     else
+        rc = NO_ERROR;
+
+     return(rc);
+  }
+
+19. Answer
+
+ 1.) The RequestControl Flag IORB_CHAIN will only be set in EXECUTE_IO
+     requests. This will be clarified in the next revision of the spec.
+
+ 2.) An ADD may not block but does have the option of processing
+     requests synchronously (i.e. returning with Status = IORB_DONE)
+     or using the Notification Callout mechanism. There is no
+     spec requirement to use one mechanism or the other. The choice
+     is up to the ADD writer, depending on how long it will take
+     the ADD to service the request.
+
+ 3.) The ADD/DM specification is the standard, not the sample code
+     IBM provides! Precedence of the various materials IBM provides
+     is discussed in the next revision of the spec.
+
+ 4.) The ADD interface and Notify interfaces specifications have been
+     corrected. They both use C calling conventions not PASCAL.
+
+ 5.) IBM is fully committed to providing ADDs on the GA product. ADDs
+     will ship in the next BETA OS/2 release. DISK01/02 and DSKBIOS1
+     have been withdrawn and will not appear on the product diskettes.
+
+ 6.) The OS2DASD code is correct. The DONE bit in the RP status field
+     is set by the Notification Callout routine of the IORB that
+     the DASD Manger is waiting on. Your Filter ADD must call the
+     Notify routine if IORB_ASYNC_POST is set in the control flags.
+     If you do not do this, the system will hang as you indicated.
+     In addition you must the IORB_DONE bit in the IORB Status prior
+     to calling the notification routine.
+
+     Handling of IORB_ASYNC_POST is required for all IORB commands,
+     this has changed from the revision of the spec you currently have
+
+20. I have uploaded the most recent version of the ADD toolkit, but it
+    seems to malfunction under 6.147.  What's the problem?
+
+    Answer: The ADDs and DMs currently on the BBS will work with 6.304e,
+    which is currently being distributed by DAP; please contact them
+    in order to receive this release.
+21.  How does the INT 13 ADD know which other ADDs have control of devices
+    88H
+     and 81H??                                                                  Rudy
+   It doesn't.  The action taken depends on the number of bios drives.          Nick
+    If the count of bios drives is...
+
+          0 - int 13 controls all hardfiles with bios
+          1 - int 13 controls all hardfiles with bios but 80
+          2 - int 13 controls all hardfiles with bios but 80 and 81
+    etc.
+
+22.  Install DISK configuration on a NCR 486 MCA, w/ an NCR SCSI busmaster,
+
+      they attempted to use INT 13 ADD (in addition to the OS2DASD.SYS.).
+      this configuration hung the system with the error message;
+      "DISK READ ERROR, PLEASE RESTART MACHINE".
+
+ Please insure Steve Hudson tests our drivers on this configuration.
+ We are continuing to fix bugs.
+

@@ -1,0 +1,16 @@
+LIBRARY IBM1S506
+
+DESCRIPTION "IBM Family 1 S506 Hard Disk Device Driver"
+
+PROTMODE
+
+SEGMENTS
+ DDHeader       CLASS 'DATA'
+ LIBDATA        CLASS 'DATA'
+ _DATA          CLASS 'DATA'
+ CONST          CLASS 'CONST'
+ _BSS           CLASS 'BSS'
+ 'Code'         CLASS 'CODE' IOPL
+ LIBCODE        CLASS 'CODE' IOPL
+ _TEXT          CLASS 'CODE' IOPL
+ SwapCode       CLASS 'CODE' IOPL

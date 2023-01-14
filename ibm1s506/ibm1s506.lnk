@@ -1,0 +1,8 @@
+S506SEGS.OBJ +
+S506DATA.OBJ S506RTE.OBJ S506SM.OBJ S506HW.OBJ S506SUB.OBJ S506IORB.OBJ +
+S506TIMR.OBJ S506MATH.OBJ +
+S506INIT.OBJ
+ibm1s506.add
+ibm1s506.map
+..\..\devhelp\dhcalls.lib ..\..\addcalls\addcalls.lib
+ibm1s506.def
